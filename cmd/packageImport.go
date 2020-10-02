@@ -18,6 +18,7 @@ import (
 const (
 	flagExclude            = "exclude"
 	flagConfig             = "config"
+	flagStdin              = "stdin"
 	flagDirectoryStructure = "dir-structure"
 	flagRepoStructure      = "remote-structure"
 	flagCollection         = "collection"
@@ -30,6 +31,7 @@ type packageImportCommand struct {
 
 func newPackageImportCommand() *packageImportCommand {
 	var remoteRepos, directories, configs, packages, collections []string
+	var stdin bool
 
 	cmd := &cobra.Command{
 		Use:     "import FROM [FROM...]",
@@ -56,6 +58,7 @@ func newPackageImportCommand() *packageImportCommand {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			importTypes := map[string][]string{
 				flagConfig:             configs,
+				flagStdin:              {""},
 				flagDirectoryStructure: directories,
 				flagRepoStructure:      remoteRepos,
 				flagPackage:            packages,
@@ -85,6 +88,7 @@ func newPackageImportCommand() *packageImportCommand {
 	cmd.Flags().StringSliceVarP(&configs, flagConfig, "f", make([]string, 0), "import a package from a config file")
 	cmd.Flags().StringSliceVarP(&remoteRepos, flagRepoStructure, "r", make([]string, 0), "create an importable config based on on the structure of a remote repository")
 	cmd.Flags().StringSliceVarP(&directories, flagDirectoryStructure, "d", make([]string, 0), "create an importable config based on the structure of a local directory")
+	cmd.Flags().BoolVar(&stdin, "stdin", false, "introducing stdin!")
 	cmd.Flags().StringP(flagExclude, "e", "", "regex pattern to exclude paths from import (only works with -c, -r, -d)")
 
 	_ = cmd.MarkFlagDirname(flagDirectoryStructure)
@@ -103,6 +107,8 @@ func importPackage(status *statuswriter.Sink, path, importType string, exclude *
 	switch importType {
 	case flagConfig:
 		pkg, err = importPackageFromConfig(status, path)
+	case flagStdin:
+		pkg, err = importPackageFromStdin(status)
 	case flagDirectoryStructure:
 		pkg, err = importPackageFromDirectoryStructure(status, path, exclude)
 	case flagRepoStructure:
@@ -132,6 +138,19 @@ func importPackage(status *statuswriter.Sink, path, importType string, exclude *
 func importPackageFromConfig(status *statuswriter.Sink, path string) (*domain.Package, error) {
 	// Import the package
 	pkg, err := session.packageService.ImportPackageFromConfig(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save the package
+	status.Write(message.Sinfof("storing package %s [%s]", pkg.Name, pkg.Label))
+	err = session.packageService.StorePackage(pkg)
+	return pkg, err
+}
+
+func importPackageFromStdin(status *statuswriter.Sink) (*domain.Package, error) {
+	// Import the package
+	pkg, err := session.packageService.ImportPackageFromStdin()
 	if err != nil {
 		return nil, err
 	}

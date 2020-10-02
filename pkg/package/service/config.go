@@ -1,6 +1,7 @@
 package packageservice
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,28 @@ func (ps packageService) ImportPackageFromConfig(path string) (*domain.Package, 
 
 	// Load file
 	file, err := toml.LoadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal config into package
+	pkg := domain.NewPackage("", "")
+	err = file.Unmarshal(pkg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate package
+	err = isPackageValid(pkg)
+	if err != nil {
+		return nil, errors.Wrap(err, "package validation")
+	}
+	return pkg, nil
+}
+
+func (ps packageService) ImportPackageFromStdin() (*domain.Package, error) {
+	// Load stdin
+	file, err := toml.LoadReader(bufio.NewReader(os.Stdin))
 	if err != nil {
 		return nil, err
 	}

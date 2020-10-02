@@ -42,6 +42,7 @@ type PackageService interface {
 	RemovePackage(label string) error
 
 	ImportPackageFromConfig(path string) (*Package, error)
+	ImportPackageFromStdin() (*Package, error)
 	ImportPackageFromDirectoryStructure(path string, exclude *regexp.Regexp) (*Package, error)
 	ImportPackageFromRepositoryStructure(url *url.URL, exclude *regexp.Regexp) (*Package, error)
 	ImportPackageFromRemote(url *url.URL) (*Package, error)
